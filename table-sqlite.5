@@ -1,0 +1,210 @@
+.\"
+.\" Copyright (c) 2014 Jason Barbier <kusuriya@serversave.us>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.Dd $Mdocdate: July 4 2016 $
+.Dt TABLE_SQLITE 5
+.Os
+.Sh NAME
+.Nm table_sqlite
+.Nd format description for smtpd sqlite tables
+.Sh DESCRIPTION
+This manual page documents the file format of sqlite tables used by the
+.Xr smtpd 8
+mail daemon.
+.Pp
+The format described here applies to tables as defined in
+.Xr smtpd.conf 5 .
+.Sh SQLITE TABLE
+A sqlite table allows the storing of usernames, passwords, aliases, and domains
+in a format that is shareable across various machines that support
+.Xr sqlite3 1
+(SQLite version 3).
+.Pp
+The table is used by
+.Xr smtpd 8
+when authenticating a user, when user information such as user-id and/or
+home directory is required for a delivery, when a domain lookup may be required,
+and/or when looking for an alias.
+.Pp
+A sqlite table consists of one or more
+.Xr sqlite3 1
+databases with one or more tables.
+.Pp
+If the table is used for authentication, the password should be
+encrypted using the
+.Xr crypt 3
+function. Such passwords can be generated using the
+.Xr encrypt 1
+utility or
+.Xr smtpctl 8
+encrypt command.
+
+.Sh SQLITE TABLE CONFIG FILE
+
+The following configuration options are available:
+.Pp
+.Bl -tag -width Ds
+.It Xo
+.Ic dbpath
+.Ar file
+.Xc
+This is the path to where the DB file is located.
+For example:
+.Bd -literal -offset indent
+dbpath /etc/mail/smtp.sqlite
+.Ed
+.Pp
+
+.It Xo
+.Ic query_alias
+.Ar SQL statement
+.Xc
+This is used to provide a query to look up aliases. The question mark
+is replaced with the appropriate data. For alias it is the left hand side of
+the SMTP address. This expects one VARCHAR to be returned with the user name
+the alias resolves to.
+.Pp
+
+.It Xo
+.Ic query_credentials
+.Ar SQL statement
+.Xc
+This is used to provide a query for looking up user credentials. The question
+mark is replaced with the appropriate data. For credentials it is the left
+hand side of the SMTP address. The query expects that there are two VARCHARS
+returned, one with a user name and one with a password in
+.Xr crypt 3
+format.
+.Pp
+
+.It Xo
+.Ic query_domain
+.Ar SQL statement
+.Xc
+This is used to provide a query for looking up a domain. The question mark
+is replaced with the appropriate data. For the domain it would be the
+right hand side of the SMTP address. This expects one VARCHAR to be returned
+with a matching domain name.
+.Pp
+
+.It Xo
+.Ic query_mailaddrmap
+.Ar SQL statement
+.Xc
+This is used to provide a query for looking up a senders. The question mark
+is replaced with the appropriate data. This expects one VARCHAR to be returned
+with the address the sender is allowed to send mails from.
+.El
+
+A generic SQL statement would be something like:
+.Bd -literal -offset indent
+query_ SELECT value FROM table WHERE key=?;
+.Ed
+
+.Sh EXAMPLES
+Example based on the OpenSMTPD FAQ: Building a Mail Server
+The filtering part is excluded in this example.
+
+The configuration below is for a medium-size mail server which handles
+multiple domains with multiple virtual users and is based on several
+assumptions. One is that a single system user named vmail is used for all
+virtual users. This user needs to be created:
+
+.Bd -literal
+# useradd -g =uid -c "Virtual Mail" -d /var/vmail -s /sbin/nologin vmail
+# mkdir /var/vmail
+# chown vmail:vmail /var/vmail
+.Ed
+
+.Ic Pa sqlite schema
+.Bd -literal -compact
+CREATE TABLE virtuals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email VARCHAR(255) NOT NULL,
+    destination VARCHAR(255) NOT NULL
+);
+CREATE TABLE credentials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL
+);
+CREATE TABLE domains (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain VARCHAR(255) NOT NULL
+);
+INSERT INTO domains VALUES (1, "example.com");
+INSERT INTO domains VALUES (2, "example.net");
+INSERT INTO domains VALUES (3, "example.org");
+
+INSERT INTO virtuals VALUES (1, "abuse@example.com", "bob@example.com");
+INSERT INTO virtuals VALUES (2, "postmaster@example.com", "bob@example.com");
+INSERT INTO virtuals VALUES (3, "webmaster@example.com", "bob@example.com");
+INSERT INTO virtuals VALUES (4, "bob@example.com", "vmail");
+INSERT INTO virtuals VALUES (5, "abuse@example.net", "alice@example.net");
+INSERT INTO virtuals VALUES (6, "postmaster@example.net", "alice@example.net");
+INSERT INTO virtuals VALUES (7, "webmaster@example.net", "alice@example.net");
+INSERT INTO virtuals VALUES (8, "alice@example.net", "vmail");
+
+INSERT INTO credentials VALUES (1, "bob@example.com", "$2b$08$ANGFKBL.BnDLL0bUl7I6aumTCLRJSQluSQLuueWRG.xceworWrUIu");
+INSERT INTO credentials VALUES (2, "alice@example.net", "$2b$08$AkHdB37kaj2NEoTcISHSYOCEBA5vyW1RcD8H1HG.XX0P/G1KIYwii");
+.Ed
+
+.Ic Pa /etc/mail/sqlite.conf
+.Bd -literal -compact
+dbpath /etc/mail/smtp.sqlite
+query_alias SELECT destination FROM virtuals WHERE email=?;
+query_credentials SELECT email, password FROM credentials WHERE email=?;
+query_domain SELECT domain FROM domains WHERE domain=?;
+.Ed
+
+.Ic Pa /etc/mail/smtpd.conf
+.Bd -literal -compact
+table domains sqlite:/etc/mail/sqlite.conf
+table virtuals sqlite:/etc/mail/sqlite.conf
+table credentials sqlite:/etc/mail/sqlite.conf
+listen on egress port 25 tls pki mail.example.com
+listen on egress port 587 tls-require pki mail.example.com auth <credentials>
+accept from any for domain <domains> virtual <virtuals> deliver to mbox
+.Ed
+
+.Sh FILES
+.Bl -tag -width "/etc/mail/sqlite.conf" -compact
+.It Pa /etc/mail/sqlite.conf
+Default
+.Xr table-sqlite 8
+configuration file.
+.It Pa /etc/mail/smtp.sqlite
+Suggested
+.Xr sqlite3 1
+database file.
+.El
+
+.Sh TODO
+Documenting the following query options:
+.Bd -literal -offset indent -compact
+.Ic query_netaddr
+.Ic query_userinfo
+.Ic query_source
+.Ic query_mailaddr
+.Ic query_addrname
+.Ed
+
+.Sh SEE ALSO
+.Xr smtpd.conf 5 ,
+.Xr smtpctl 8 ,
+.Xr smtpd 8 ,
+.Xr encrypt 1 ,
+.Xr crypt 3
