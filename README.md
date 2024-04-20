@@ -176,10 +176,10 @@ Documenting the following query options:
 
 # SEE ALSO
 
+encrypt(1),
+crypt(3),
 smtpd.conf(5),
 smtpctl(8),
-smtpd(8),
-encrypt(1),
-crypt(3)
+smtpd(8)
 
-Nixpkgs - July 4, 2016
+Nixpkgs - April 20, 2024
