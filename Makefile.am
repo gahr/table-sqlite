@@ -2,8 +2,9 @@ noinst_PROGRAMS =	table-sqlite
 
 table_sqlite_SOURCES =	table_sqlite.c dict.c log.c table_stdio.c util.c
 
-AM_CFLAGS =
 LDADD =			$(LIBOBJS)
+
+dist_man5_MANS =	table-sqlite.5
 
 smtpdir =		${prefix}/libexec/smtpd
 
