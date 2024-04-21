@@ -194,4 +194,19 @@ smtpd.conf(5),
 smtpctl(8),
 smtpd(8)
 
+# HISTORY
+
+The first version of
+**table\_sqlite**
+was written in 2016.
+It was converted to the stdio table protocol in 2024.
+
+# AUTHORS
+
+**table\_sqlite**
+was initially written by
+Gilles Chehade &lt;[gilles@poolp.org](mailto:gilles@poolp.org)&gt;.
+The conversion to the stdio table protocol was done by
+Omar Polo &lt;[op@openbsd.org](mailto:op@openbsd.org)&gt;.
+
 Nixpkgs - April 20, 2024
