@@ -209,4 +209,4 @@ Gilles Chehade &lt;[gilles@poolp.org](mailto:gilles@poolp.org)&gt;.
 The conversion to the stdio table protocol was done by
 Omar Polo &lt;[op@openbsd.org](mailto:op@openbsd.org)&gt;.
 
-Nixpkgs - April 20, 2024
+OpenBSD 7.5 - April 20, 2024
