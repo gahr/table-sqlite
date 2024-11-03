@@ -1,3 +1,5 @@
+SUBDIRS =		openbsd-compat
+
 noinst_PROGRAMS =	table-sqlite
 
 table_sqlite_SOURCES =	table_sqlite.c dict.c log.c table_stdio.c util.c
