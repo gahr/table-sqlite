@@ -355,7 +355,7 @@ table_sqlite_lookup(int service, struct dict *params, const char *key, char *dst
 	case K_MAILADDRMAP:
 		memset(dst, 0, sz);
 		do {
-			value = sqlite3_column_text(stmt, 0);
+			value = (const char *)sqlite3_column_text(stmt, 0);
 			if (dst[0] && strlcat(dst, ", ", sz) >= sz) {
 				log_warnx("warn: result too large");
 				r = -1;
@@ -393,7 +393,7 @@ table_sqlite_lookup(int service, struct dict *params, const char *key, char *dst
 	case K_SOURCE:
 	case K_MAILADDR:
 	case K_ADDRNAME:
-		if (strlcpy(dst, sqlite3_column_text(stmt, 0), sz) >= sz) {
+		if (strlcpy(dst, (const char *)sqlite3_column_text(stmt, 0), sz) >= sz) {
 			log_warnx("warn: result too large");
 			r = -1;
 		}
@@ -428,7 +428,7 @@ table_sqlite_fetch(int service, struct dict *params, char *dst, size_t sz)
 		;
 
 	while ((s = sqlite3_step(stmt_fetch_source)) == SQLITE_ROW)
-		dict_set(&sources, sqlite3_column_text(stmt_fetch_source, 0), NULL);
+		dict_set(&sources, (const char *)sqlite3_column_text(stmt_fetch_source, 0), NULL);
 
 	if (s != SQLITE_DONE)
 		log_warnx("warn: sqlite3_step: %s", sqlite3_errmsg(db));
